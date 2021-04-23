@@ -1,5 +1,5 @@
 # ImposterSyndrome
-This is a packet sniffer for Among Us. It will inform you who are crewmates, and who are imposters.
+This is a packet sniffer for Among Us. It will inform you which players are crewmates, and which are imposters.
 
 # Prerequisites
 This program relies on gopacket, which relies on winpcap or npcap on windows, please install one of those before running this program.
