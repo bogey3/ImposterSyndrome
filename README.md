@@ -9,7 +9,7 @@ Please don't ruin the game, I created this as a learning experience and wanted t
 
 ## Sample Output
 ```
-Using Intel(R) Ethernet Connection (2) I219-V
+Using Intel(R) Ethernet Connection I219-V
 Listening for spawn packet...
 +------------+------------+
 | Crewmates  | Imposters  |
