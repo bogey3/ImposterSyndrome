@@ -1,20 +1,19 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 	"log"
-	"net"
+	"strconv"
 	"time"
 )
 
 type Player struct{
 	id int
 	name string
-	colour int
+	colour string
 	hat int
 	pet int
 	skin int
@@ -34,7 +33,71 @@ const MIRA_SHIP_STATUS = 5
 const POLUS_SHIP_STATUS = 6
 const DLEKS_SHIP_STATUS = 7
 const AIRSHIP_STATUS = 8
+
+const RED = 0
+const BLUE = 1
+const GREEN = 2
+const PINK = 3
+const ORANGE = 4
+const YELLOW = 5
+const BLACK = 6
+const WHITE = 7
+const PURPLE = 8
+const BROWN = 9
+const CYAN = 10
+const LIME = 11
+const MAROON = 12
+const ROSE = 13
+const BANANA = 14
+const GRAY = 15
+const TAN = 16
+const CORAL = 17
+
 var players map[int]Player
+
+func playerColour(colour int)string{
+	switch colour {
+	case RED:
+		return "Red"
+	case BLUE:
+		return "Blue"
+	case GREEN:
+		return "Green"
+	case PINK:
+		return "Pink"
+	case ORANGE:
+		return "Orange"
+	case YELLOW:
+		return "Yellow"
+	case BLACK:
+		return "Black"
+	case WHITE:
+		return "White"
+	case PURPLE:
+		return "Purple"
+	case BROWN:
+		return "Brown"
+	case CYAN:
+		return "Cyan"
+	case LIME:
+		return "Lime"
+	case MAROON:
+		return "Maroon"
+	case ROSE:
+		return "Rose"
+	case BANANA:
+		return "Banana"
+	case GRAY:
+		return "Gray"
+	case TAN:
+		return "Tan"
+	case CORAL:
+		return "Coral"
+	default:
+		return "Unknown " + strconv.Itoa(colour)
+
+	}
+}
 
 func readPackedInt(packed []byte)(int, []byte){
 	newInt := 0
@@ -52,6 +115,7 @@ func readPackedInt(packed []byte)(int, []byte){
 }
 
 func readHazelMessage(data []byte)(HazelMessage, []byte){
+	// https://github.com/codyphobe/among-us-protocol/blob/master/01_packet_structure/03_the_structure_of_a_hazel_message.md
 	length := int(binary.LittleEndian.Uint16(data[:2]))
 	tag := int(data[2])
 	if length+3 > len(data){
@@ -62,7 +126,7 @@ func readHazelMessage(data []byte)(HazelMessage, []byte){
 	return HazelMessage{tag, payload}, data
 }
 
-func decodePacket(data []byte)(int, []byte){
+func decodePacket(data []byte){
 	//This function will find the spawn packet and parse it
 	if len(data) > 3 {
 		packetType := data[0]
@@ -85,21 +149,20 @@ func decodePacket(data []byte)(int, []byte){
 				if gameDataMessage.tag == SPAWN{
 					spawnType, _ := readPackedInt(gameDataMessage.payload)
 					if spawnType == SKELD_SHIP_STATUS || spawnType == MIRA_SHIP_STATUS || spawnType == POLUS_SHIP_STATUS || spawnType == DLEKS_SHIP_STATUS || spawnType == AIRSHIP_STATUS{
-						return SPAWN, data
+						printPacket(SPAWN, data)
 					}
 				}
 			}
 		}
 	}
-	return 0, []byte{}
 }
 
-func decodeSpawn(data []byte)([]string, []string) {
-	imposters := []string{}
-	crewmates := []string{}
+func decodeSpawn(data []byte)([]Player, []Player) {
+	imposters := []Player{}
+	crewmates := []Player{}
 
 	userPayload := HazelMessage{}
-	usersHazelMessages := []HazelMessage{}
+	//usersHazelMessages := []HazelMessage{}
 	for len(data) > 0 {
 		message := HazelMessage{}
 		message, data = readHazelMessage(data)
@@ -109,106 +172,93 @@ func decodeSpawn(data []byte)([]string, []string) {
 		}
 	}
 
-	if len(userPayload.payload) > 1 {
-		_, userPayload.payload = readPackedInt(userPayload.payload)
-		for len(userPayload.payload) > 0 {
-			message := HazelMessage{}
-			message, userPayload.payload = readHazelMessage(userPayload.payload)
-			usersHazelMessages = append(usersHazelMessages, message)
-		}
-	}
+	// https://github.com/codyphobe/among-us-protocol/blob/master/05_innernetobject_types/03_gamedata.md
+	_, userPayload.payload = readPackedInt(userPayload.payload)
+	for len(userPayload.payload) > 0 {
+		playerData := HazelMessage{}
+		playerData, userPayload.payload = readHazelMessage(userPayload.payload)
 
-	for _, userMessage := range usersHazelMessages{
 		colourId, hatId, petId, skinId, flags := 0,0,0,0, byte(0)
-		name := string(userMessage.payload[1:int(userMessage.payload[0])+1])
-		userMessage.payload = userMessage.payload[userMessage.payload[0]+1:]
-		colourId, userMessage.payload = readPackedInt(userMessage.payload)
-		hatId, userMessage.payload = readPackedInt(userMessage.payload)
-		petId, userMessage.payload = readPackedInt(userMessage.payload)
-		skinId, userMessage.payload = readPackedInt(userMessage.payload)
-		flags = userMessage.payload[0]
-		players[userMessage.tag] = Player{userMessage.tag, name, colourId, hatId, petId,skinId, flags}
+		name := string(playerData.payload[1:int(playerData.payload[0])+1])
+		playerData.payload = playerData.payload[playerData.payload[0]+1:]
+		colourId, playerData.payload = readPackedInt(playerData.payload)
+		hatId, playerData.payload = readPackedInt(playerData.payload)
+		petId, playerData.payload = readPackedInt(playerData.payload)
+		skinId, playerData.payload = readPackedInt(playerData.payload)
+		flags = playerData.payload[0]
+		if playerColour(colourId) == "Unknown"{
+			fmt.Println(name, colourId)
+		}
+
 
 		if (flags & 2) == 0 {
-			crewmates = append(crewmates, name)
+			crewmates = append(crewmates, Player{playerData.tag, name, playerColour(colourId), hatId, petId,skinId, flags})
 		} else {
-			imposters = append(imposters, name)
+			imposters = append(imposters, Player{playerData.tag, name, playerColour(colourId), hatId, petId,skinId, flags})
 		}
-
 	}
-	return imposters, crewmates
+	return crewmates, imposters
 }
 
-func printGame(crewmates []string, imposters []string){
-	format := "| %-10s | %-10s |\n"
-	fmt.Printf("+------------+------------+\n")
-	fmt.Printf(format, "Crewmates", "Imposters")
-	fmt.Printf("+------------+------------+\n")
+func printGame(crewmates []Player, imposters []Player){
+	format := "| %-10s | %-10s || %-10s | %-10s |\n"
+	fmt.Printf("+-------------------------++-------------------------+\n")
+	fmt.Printf(format, "Crewmates", "Colour", "Imposters", "Colour")
+	fmt.Printf("+-------------------------++-------------------------+\n")
 	for i, crewmate := range(crewmates){
-		imposter := ""
+		imposter := Player{}
 		if i < len(imposters){
 			imposter = imposters[i]
 		}
-		fmt.Printf(format, crewmate, imposter)
+		fmt.Printf(format, crewmate.name, crewmate.colour, imposter.name, imposter.colour)
 	}
-	fmt.Printf("+------------+------------+\n\n")
+	fmt.Printf("+-------------------------++-------------------------+\n\n")
 
 }
 
-func listenForInitial(device pcap.Interface, returnChan chan pcap.Interface, payload []byte, readyChan chan bool){
-	//This function will listen on an interface for a specific packet and then return that interface to the findInterface function through a channel
+func listenForInitial(device pcap.Interface, returnChan chan pcap.Interface, deviceFound chan bool, filter string){
+	//This function will listen on an interface for packets on the ports used by AmongUs and then return that interface to the findInterface function through a channel
 	buffer := int32(1600)
-	filter := "udp port 22023 and host na.mm.among.us"
 	handler, err := pcap.OpenLive(device.Name, buffer, false, time.Second)
 	if err != nil {
 		panic(err)
 	}
-
 	if err := handler.SetBPFFilter(filter); err != nil {
 		log.Fatal(err)
 	}
 	source := gopacket.NewPacketSource(handler, handler.LinkType())
 
 	go func() {
-		//Wait ten seconds then close the handler so the many packet capture threads can exit
-		time.Sleep(time.Second * 10)
+		//Wait for device to be found, then exit
+		<- deviceFound
 		handler.Close()
 	}()
-	readyChan <- true // Send a message on the channel to let the thread know it's ready to retrieve the packets
-	for packet := range source.Packets() {
-		if bytes.Equal(packet.Data()[42:], payload) {
-			returnChan <- device
-		}
+
+	for range source.Packets() {
+		returnChan <- device
+		close(deviceFound) // Close the deviceFound channel so all threads waiting for AmongUs traffic will exit
 	}
 }
 
-func findInterface()pcap.Interface{
-	//This function will find the publicly routable interface by listening on all interfaces, then sending a specific packet
-	//The packet that actually sends the interface is the one with internet access
-	flag := []byte{1,2,3,4,5,6,7,8,9,8,7,6,5,4,3,2,1}
-	returnChan := make(chan pcap.Interface)
-	readyChan := make(chan bool)
+func findInterface(filter string)pcap.Interface{
+	//This function will find the interface used by AmongUs by listening on all interfaces for network traffic on the UDP ports used by AmongUs
 	devices, err := pcap.FindAllDevs()
 	if err != nil{
 		panic(err)
 	}
+	returnChan := make(chan pcap.Interface)
+	deviceFound := make(chan bool)
+
 	for _, device := range devices {
-		go listenForInitial(device, returnChan, flag, readyChan)
+		go listenForInitial(device, returnChan, deviceFound, filter)
 	}
-	for range devices {
-		<-readyChan // Recieve a message from each chan when it is ready to listen
-	}
-	conn, err := net.Dial("udp", "na.mm.among.us:22023")
-	conn.Write(flag)
-	conn.Close()
-	gatewayDevice := <- returnChan
-	return gatewayDevice
+	return <- returnChan
 }
 
 
 func printPacket(packetType int, data []byte){
 	if packetType == SPAWN {
-		imposters, crewmates := decodeSpawn(data)
+		crewmates, imposters := decodeSpawn(data)
 		if len(imposters)+len(crewmates) >= 4 {
 			printGame(crewmates, imposters)
 		}
@@ -217,14 +267,14 @@ func printPacket(packetType int, data []byte){
 
 func main() {
 	players = make(map[int]Player)
-
-	routeableInterface := findInterface()
-	fmt.Println("Using", routeableInterface.Description)
+	filter := "udp port 22023 or udp port 22123 or udp port 22223 or udp port 22323 or udp port 22423 or udp port 22523 or udp port 22623 or udp port 22723 or udp port 22823 or udp port 22923"
+	fmt.Print("Waiting for game traffic\r")
+	internetConnectedInterface := findInterface(filter)
+	fmt.Println("Using interface:", internetConnectedInterface.Description)
 
 	buffer := int32(1600)
-	filter := "udp port 22023 or udp port 22123 or udp port 22223 or udp port 22323 or udp port 22423 or udp port 22523 or udp port 22623 or udp port 22723 or udp port 22823 or udp port 22923"
 
-	handler, err := pcap.OpenLive(routeableInterface.Name, buffer, false, pcap.BlockForever)
+	handler, err := pcap.OpenLive(internetConnectedInterface.Name, buffer, false, pcap.BlockForever)
 	if err != nil{
 		panic(err)
 	}
@@ -233,10 +283,8 @@ func main() {
 		log.Fatal(err)
 	}
 	source := gopacket.NewPacketSource(handler, handler.LinkType())
-	fmt.Println("Listening for spawn packets...")
+	fmt.Print("Listening for spawn...\r")
 	for packet := range source.Packets() {
-		packetType, data := decodePacket(packet.Data()[42:])
-		printPacket(packetType, data)
-
+		go decodePacket(packet.Data()[42:])
 	}
 }
