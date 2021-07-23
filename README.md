@@ -11,16 +11,17 @@ Please don't ruin the game, I created this as a learning experience and wanted t
 ```
 Using Intel(R) Ethernet Connection I219-V
 Listening for spawn packet...
-+------------+------------+
-| Crewmates  | Imposters  |
-+------------+------------+
-| GAMbino    | fergie     |
-| Demon      | bogey3     |
-| Boo        |            |
-| cupcake    |            |
-| HzrdChek10 |            |
-| amira      |            |
-| Gorgor     |            |
-| HashtagBLM |            |
-+------------+------------+
++-------------------------++-------------------------+
+| Crewmates  | Colour     || Imposters  | Colour     |
++-------------------------++-------------------------+
+| Limahm     | Coral      || Carbous    | Green      |
+| Ousloe     | Red        || Darkbook   | White      |
+| Meanstar   | Lime       || Sunnysoda  | Yellow     |
+| Ovalcrowd  | Cyan       ||            |            |
+| Lotin      | Rose       ||            |            |
+| Phorek     | Orange     ||            |            |
+| Lexpow     | Banana     ||            |            |
+| Misfish    | Pink       ||            |            |
+| Phoyx      | Gray       ||            |            |
++-------------------------++-------------------------+
 ```
