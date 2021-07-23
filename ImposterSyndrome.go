@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
-	"log"
 	"strconv"
 	"time"
 )
@@ -24,36 +23,6 @@ type HazelMessage struct{
 	tag int
 	payload []byte
 }
-
-const RELIABLE = byte(1)
-const GAME_DATA = 5
-const SPAWN = 4
-const SKELD_SHIP_STATUS = 0 // https://github.com/codyphobe/among-us-protocol/blob/master/01_packet_structure/06_enums.md#spawntype
-const MIRA_SHIP_STATUS = 5
-const POLUS_SHIP_STATUS = 6
-const DLEKS_SHIP_STATUS = 7
-const AIRSHIP_STATUS = 8
-
-const RED = 0
-const BLUE = 1
-const GREEN = 2
-const PINK = 3
-const ORANGE = 4
-const YELLOW = 5
-const BLACK = 6
-const WHITE = 7
-const PURPLE = 8
-const BROWN = 9
-const CYAN = 10
-const LIME = 11
-const MAROON = 12
-const ROSE = 13
-const BANANA = 14
-const GRAY = 15
-const TAN = 16
-const CORAL = 17
-
-var players map[int]Player
 
 func playerColour(colour int)string{
 	switch colour {
@@ -95,7 +64,6 @@ func playerColour(colour int)string{
 		return "Coral"
 	default:
 		return "Unknown " + strconv.Itoa(colour)
-
 	}
 }
 
@@ -186,10 +154,6 @@ func decodeSpawn(data []byte)([]Player, []Player) {
 		petId, playerData.payload = readPackedInt(playerData.payload)
 		skinId, playerData.payload = readPackedInt(playerData.payload)
 		flags = playerData.payload[0]
-		if playerColour(colourId) == "Unknown"{
-			fmt.Println(name, colourId)
-		}
-
 
 		if (flags & 2) == 0 {
 			crewmates = append(crewmates, Player{playerData.tag, name, playerColour(colourId), hatId, petId,skinId, flags})
@@ -224,7 +188,7 @@ func listenForInitial(device pcap.Interface, returnChan chan pcap.Interface, dev
 		panic(err)
 	}
 	if err := handler.SetBPFFilter(filter); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	source := gopacket.NewPacketSource(handler, handler.LinkType())
 
@@ -255,7 +219,6 @@ func findInterface(filter string)pcap.Interface{
 	return <- returnChan
 }
 
-
 func printPacket(packetType int, data []byte){
 	if packetType == SPAWN {
 		crewmates, imposters := decodeSpawn(data)
@@ -266,7 +229,6 @@ func printPacket(packetType int, data []byte){
 }
 
 func main() {
-	players = make(map[int]Player)
 	filter := "udp port 22023 or udp port 22123 or udp port 22223 or udp port 22323 or udp port 22423 or udp port 22523 or udp port 22623 or udp port 22723 or udp port 22823 or udp port 22923"
 	fmt.Print("Waiting for game traffic\r")
 	internetConnectedInterface := findInterface(filter)
@@ -280,7 +242,7 @@ func main() {
 	}
 
 	if err := handler.SetBPFFilter(filter); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	source := gopacket.NewPacketSource(handler, handler.LinkType())
 	fmt.Print("Listening for spawn...\r")
