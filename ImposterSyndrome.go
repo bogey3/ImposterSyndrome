@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
+	"math/rand"
 	"strconv"
 	"time"
 )
@@ -94,7 +95,8 @@ func readHazelMessage(data []byte)(HazelMessage, []byte){
 	return HazelMessage{tag, payload}, data
 }
 
-func decodePacket(data []byte){
+func decodePacket(packet gopacket.Packet) {
+	data := packet.Data()[42:]
 	//This function will find the spawn packet and parse it
 	if len(data) > 3 {
 		packetType := data[0]
@@ -109,13 +111,13 @@ func decodePacket(data []byte){
 				data = message.payload
 			}
 			if message.tag == GAME_DATA && len(data) > 8 {
-				gameId := data[:4]
+				_ = data[:4] //gameID
 				data = data[4:]
-				_ = gameId
 				gameDataMessage := HazelMessage{}
-				gameDataMessage, _ = readHazelMessage(data)
+				gameDataMessage, data = readHazelMessage(data)
 				if gameDataMessage.tag == SPAWN{
-					spawnType, _ := readPackedInt(gameDataMessage.payload)
+					var spawnType int
+					spawnType, gameDataMessage.payload = readPackedInt(gameDataMessage.payload)
 					if spawnType == SKELD_SHIP_STATUS || spawnType == MIRA_SHIP_STATUS || spawnType == POLUS_SHIP_STATUS || spawnType == DLEKS_SHIP_STATUS || spawnType == AIRSHIP_STATUS{
 						printPacket(SPAWN, data)
 					}
@@ -125,12 +127,20 @@ func decodePacket(data []byte){
 	}
 }
 
+func printPacket(packetType int, data []byte){
+	if packetType == SPAWN {
+		crewmates, imposters := decodeSpawn(data)
+		if len(imposters)+len(crewmates) >= 4 {
+			printGame(crewmates, imposters)
+		}
+	}
+}
+
 func decodeSpawn(data []byte)([]Player, []Player) {
 	imposters := []Player{}
 	crewmates := []Player{}
 
 	userPayload := HazelMessage{}
-	//usersHazelMessages := []HazelMessage{}
 	for len(data) > 0 {
 		message := HazelMessage{}
 		message, data = readHazelMessage(data)
@@ -219,16 +229,8 @@ func findInterface(filter string)pcap.Interface{
 	return <- returnChan
 }
 
-func printPacket(packetType int, data []byte){
-	if packetType == SPAWN {
-		crewmates, imposters := decodeSpawn(data)
-		if len(imposters)+len(crewmates) >= 4 {
-			printGame(crewmates, imposters)
-		}
-	}
-}
-
 func main() {
+	rand.Seed(time.Now().Unix())
 	filter := "udp port 22023 or udp port 22123 or udp port 22223 or udp port 22323 or udp port 22423 or udp port 22523 or udp port 22623 or udp port 22723 or udp port 22823 or udp port 22923"
 	fmt.Print("Waiting for game traffic\r")
 	internetConnectedInterface := findInterface(filter)
@@ -247,6 +249,6 @@ func main() {
 	source := gopacket.NewPacketSource(handler, handler.LinkType())
 	fmt.Print("Listening for spawn...\r")
 	for packet := range source.Packets() {
-		go decodePacket(packet.Data()[42:])
+		go decodePacket(packet)
 	}
 }
